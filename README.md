@@ -38,21 +38,28 @@ materiais/
 
 ## Branches e tags da aplicação
 
-Estado atual do repositório:
+- `master` — materiais das 6 aulas (slides `.md` + `.pptx`, labs, gabaritos, quizzes) +
+  aplicação no estado **baseline**.
+- branch `curso-progressivo` — progressão linear com uma correção por aula (compila em cada etapa).
+- branch `solucao-hardened` — solução final + testes JUnit (`mvn test` = 9 verdes).
 
-- `master` — materiais das 6 aulas + aplicação no estado **baseline** (ponto de partida).
-- tag `aula-1-baseline` — aplicação vulnerável (ponto de partida dos laboratórios).
-- branch `solucao-hardened` / tag `aula-6-hardened` — **solução de referência completa**
-  (correções das Aulas 2–6 aplicadas e **verificadas em execução**: SQLi, IDOR, JWT,
-  BCrypt, AES-GCM, CSRF, Actuator, SSRF, rate limiting).
+Tags (cada `aula-N-baseline` == `aula-(N-1)-hardened`, para o lab começar do estado corrigido anterior):
 
-Convenção pedagógica sugerida (gerar sob demanda a partir dos gabaritos, que já contêm
-o código corrigido de cada lab): `aula-N-baseline` (estado corrigido acumulado até a aula
-anterior) e `aula-N-hardened` (solução daquela aula).
+| Tag | Estado |
+|-----|--------|
+| `aula-1-baseline` = `aula-2-baseline` | app vulnerável (Aula 1 não altera código) |
+| `aula-2-hardened` = `aula-3-baseline` | + SQLi parametrizado, Bean Validation/@CNPJ, upload seguro |
+| `aula-3-hardened` = `aula-4-baseline` | + IDOR, BCrypt+migração, rate limiting, /admin ADMIN |
+| `aula-4-hardened` = `aula-5-baseline` | + AES-256-GCM, JWT verificado, cookie/sessão, CSRF |
+| `aula-5-hardened` = `aula-6-baseline` | + error handling, log injection, headers, SSRF allowlist |
+| `aula-6-hardened` | + Actuator restrito, H2 off, commons-text atualizado, Dockerfile hardened, testes |
 
-> Dica: `git checkout aula-1-baseline` para o ponto de partida; `git checkout solucao-hardened`
-> para a solução final. Para rodar a solução, defina `PORTAL_JWT_SECRET` e `PORTAL_CRYPTO_KEY`
-> (há defaults DEV no `application.yml`).
+Todas as correções foram **verificadas em execução** (ataques falham, uso legítimo funciona)
+e os testes JUnit passam em `aula-6-hardened`.
+
+> Dica: `git checkout aula-1-baseline` (ponto de partida) · `git checkout aula-3-baseline`
+> (iniciar a Aula 3) · `git checkout solucao-hardened` (solução + testes).
+> Para rodar a solução, defina `PORTAL_JWT_SECRET` e `PORTAL_CRYPTO_KEY` (há defaults DEV no `application.yml`).
 
 > ⚠️ A aplicação é um ambiente de treinamento e contém vulnerabilidades reais de
 > propósito. Não a exponha na internet.
