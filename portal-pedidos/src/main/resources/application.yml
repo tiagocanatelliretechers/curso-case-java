@@ -1,7 +1,6 @@
 # =====================================================================
-# Estado apos a AULA 4 (criptografia + sessao).
-# Corrigido: AES-GCM (chave em config/env), JWT verificado, cookie seguro.
-# AINDA vulneravel: error.* verboso (Aula 5), Actuator/H2 abertos (Aula 6).
+# Estado apos a AULA 5 (error handling + testes).
+# Corrigido: error.* generico. AINDA vulneravel: Actuator/H2 abertos (Aula 6).
 # =====================================================================
 spring:
   application:
@@ -52,10 +51,10 @@ server:
         same-site: lax
       timeout: 15m
   error:
-    # A05/A09 - ainda verboso (corrigido na Aula 5)
-    include-message: always
-    include-stacktrace: always
-    include-exception: true
+    # Lab 5.1 - nao vazar detalhe ao cliente
+    include-message: never
+    include-stacktrace: never
+    include-exception: false
 
 # A05 - Actuator ainda totalmente exposto (corrigido na Aula 6)
 management:

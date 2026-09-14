@@ -12,10 +12,10 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
- * Estado apos a AULA 4 (criptografia + sessao).
- * Corrigido aqui: CSRF reativado (Lab 4.4), regeneracao de sessao (Lab 4.3).
- * Acumulado: BCrypt, rate limiting, /admin ADMIN (Aula 3).
- * AINDA vulneravel: Actuator/H2 abertos e headers ausentes (Aulas 5-6).
+ * Estado apos a AULA 5 (error handling + headers de seguranca).
+ * Corrigido aqui: headers de seguranca (Lab 5.1).
+ * Acumulado: BCrypt, rate limiting, /admin ADMIN, CSRF, sessao.
+ * AINDA vulneravel: Actuator/H2 abertos (Aula 6).
  */
 @Configuration
 public class SecurityConfig {
@@ -58,7 +58,10 @@ public class SecurityConfig {
                 .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
                 .sessionFixation(fixation -> fixation.changeSessionId())   // Lab 4.3
             )
-            .headers(headers -> headers.frameOptions(frame -> frame.disable()))
+            .headers(headers -> headers
+                .frameOptions(frame -> frame.sameOrigin())
+                .contentSecurityPolicy(csp -> csp.policyDirectives("default-src 'self'"))
+                .httpStrictTransportSecurity(hsts -> hsts.includeSubDomains(true)))   // Lab 5.1
             .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)   // Lab 3.4
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
