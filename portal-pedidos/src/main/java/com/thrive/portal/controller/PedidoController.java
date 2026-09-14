@@ -48,14 +48,10 @@ public class PedidoController {
         return "pedidos/lista";
     }
 
-    /**
-     * A01 - IDOR: exibe qualquer pedido informado pelo {id}, sem checar se
-     * pertence ao cliente autenticado. Troque o id na URL para ver o pedido
-     * de outro cliente. Corrigido no Lab 3.2.
-     */
+    /** Lab 3.2 - checa a posse do pedido (anti-IDOR). */
     @GetMapping("/{id}")
-    public String ver(@PathVariable Long id, Model model) {
-        Pedido pedido = pedidoService.porId(id);
+    public String ver(@PathVariable Long id, Principal principal, Model model) {
+        Pedido pedido = pedidoService.porIdDoCliente(id, clienteIdDe(principal));
         model.addAttribute("pedido", pedido);
         return "pedidos/detalhe";
     }
@@ -80,8 +76,10 @@ public class PedidoController {
     @PostMapping("/{id}/comprovante")
     public String enviarComprovante(@PathVariable Long id,
                                     @RequestParam("arquivo") MultipartFile arquivo,
-                                    RedirectAttributes ra) throws Exception {
-        // A04 - sem validacao de tipo/tamanho (UploadService)
+                                    Principal principal, RedirectAttributes ra) throws Exception {
+        // Lab 3.2 - so o dono do pedido pode anexar comprovante (anti-IDOR)
+        pedidoService.porIdDoCliente(id, clienteIdDe(principal));
+        // Lab 2.4 - validacao de tipo/tamanho no UploadService
         uploadService.salvar(id, arquivo);
         ra.addFlashAttribute("mensagem", "Comprovante enviado.");
         return "redirect:/pedidos/" + id;

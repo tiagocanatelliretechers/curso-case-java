@@ -43,8 +43,13 @@ public class HomeController {
     @PostMapping("/registrar")
     public String registrar(@Valid @ModelAttribute("form") CadastroClienteForm form,
                             BindingResult br, Model model) {
-        // Lab 2.3 - valida na borda; reexibe com mensagens genericas.
+        // Lab 2.3 - valida na borda; reexibe com mensagens genericas, sem vazar detalhes.
         if (br.hasErrors()) {
+            return "registrar";
+        }
+        // Lab 3.4 - unicidade de e-mail com mensagem generica (anti user enumeration).
+        if (usuarioService.porEmail(form.getEmail()).isPresent()) {
+            model.addAttribute("mensagem", "Nao foi possivel concluir o cadastro.");
             return "registrar";
         }
         Cliente cliente = new Cliente();
@@ -65,7 +70,7 @@ public class HomeController {
 
     @PostMapping("/esqueci-senha")
     public String esqueciSenha(@RequestParam String email, Model model) {
-        // A07 - user enumeration (sera corrigido na Aula 3)
+        // A07 - user enumeration (mensagem diferente para e-mail existente/inexistente)
         model.addAttribute("mensagem", usuarioService.recuperarSenha(email));
         return "esqueci-senha";
     }

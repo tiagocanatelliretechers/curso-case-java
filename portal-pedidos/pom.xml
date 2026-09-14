@@ -96,6 +96,13 @@
             <version>1.9</version>
         </dependency>
 
+        <!-- Rate limiting no login (Lab 3.4) -->
+        <dependency>
+            <groupId>com.bucket4j</groupId>
+            <artifactId>bucket4j-core</artifactId>
+            <version>8.7.0</version>
+        </dependency>
+
         <!-- Bean Validation: disponivel, mas NAO usado no baseline (sera introduzido na Aula 2) -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
