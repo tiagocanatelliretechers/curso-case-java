@@ -36,10 +36,23 @@ materiais/
    - `anexos/` — templates e fichas
 3. Os `.md` estão prontos para conversão em PPTX/DOCX/PDF.
 
-## Convenção de branches da aplicação
+## Branches e tags da aplicação
 
-- `aula-1-baseline` … `aula-6-baseline` — ponto de partida de cada laboratório
-- `aula-N-hardened` — solução de referência da aula (uso do instrutor)
+Estado atual do repositório:
+
+- `master` — materiais das 6 aulas + aplicação no estado **baseline** (ponto de partida).
+- tag `aula-1-baseline` — aplicação vulnerável (ponto de partida dos laboratórios).
+- branch `solucao-hardened` / tag `aula-6-hardened` — **solução de referência completa**
+  (correções das Aulas 2–6 aplicadas e **verificadas em execução**: SQLi, IDOR, JWT,
+  BCrypt, AES-GCM, CSRF, Actuator, SSRF, rate limiting).
+
+Convenção pedagógica sugerida (gerar sob demanda a partir dos gabaritos, que já contêm
+o código corrigido de cada lab): `aula-N-baseline` (estado corrigido acumulado até a aula
+anterior) e `aula-N-hardened` (solução daquela aula).
+
+> Dica: `git checkout aula-1-baseline` para o ponto de partida; `git checkout solucao-hardened`
+> para a solução final. Para rodar a solução, defina `PORTAL_JWT_SECRET` e `PORTAL_CRYPTO_KEY`
+> (há defaults DEV no `application.yml`).
 
 > ⚠️ A aplicação é um ambiente de treinamento e contém vulnerabilidades reais de
 > propósito. Não a exponha na internet.
