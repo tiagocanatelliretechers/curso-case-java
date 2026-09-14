@@ -24,19 +24,18 @@ public class ProdutoService {
     }
 
     /**
-     * A03 - SQL Injection.
-     *
-     * O termo de busca e concatenado diretamente na query. Um atacante pode
-     * enviar, por exemplo:
-     *   ' OR '1'='1
-     *   ' UNION SELECT id, email, senha, role, cnpj, 0 FROM usuario --
-     *
-     * Sera corrigido no Lab 2.2 (query parametrizada).
+     * Lab 2.2 - SQL Injection corrigido com query PARAMETRIZADA.
+     * O termo (incluindo o curinga %) e enviado como parametro, nunca concatenado
+     * ao texto da query, de modo que aspas/UNION no input viram dados literais.
      */
     public List<Produto> buscar(String termo) {
         String sql = "SELECT id, nome, descricao, preco, estoque FROM produto "
-                + "WHERE nome LIKE '%" + termo + "%' OR descricao LIKE '%" + termo + "%'";
-        return jdbcTemplate.query(sql, (rs, rowNum) -> {
+                + "WHERE nome LIKE ? OR descricao LIKE ?";
+        String like = "%" + termo + "%";
+        return jdbcTemplate.query(sql, ps -> {
+            ps.setString(1, like);
+            ps.setString(2, like);
+        }, (rs, rowNum) -> {
             Produto p = new Produto();
             p.setId(rs.getLong("id"));
             p.setNome(rs.getString("nome"));

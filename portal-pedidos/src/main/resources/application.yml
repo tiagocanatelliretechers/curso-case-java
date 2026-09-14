@@ -46,9 +46,9 @@ spring:
 
   servlet:
     multipart:
-      # A04/A03 - sem limite efetivo de tamanho de upload no baseline
-      max-file-size: 100MB
-      max-request-size: 100MB
+      # Lab 2.4 - limite de tamanho de upload
+      max-file-size: 5MB
+      max-request-size: 6MB
 
 server:
   port: 8080
