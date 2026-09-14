@@ -25,14 +25,15 @@ public class ImportController {
         return "importar-catalogo";
     }
 
-    /**
-     * A10 - SSRF (CatalogoImportService) + A09 - Log Injection.
-     * A URL informada pelo usuario e registrada no log sem sanitizacao
-     * (permite injetar linhas falsas de log com \n).
-     */
+    // Lab 5.1 - neutraliza CR/LF/TAB para evitar log injection (CWE-117)
+    private static String sanitizar(String s) {
+        return s == null ? "" : s.replaceAll("[\\r\\n\\t]", "_");
+    }
+
     @PostMapping("/importar-catalogo")
     public String importar(@RequestParam String url, Model model) {
-        log.info("Importacao de catalogo solicitada para URL: " + url);
+        // placeholders {} + sanitizacao evitam forjar linhas de log
+        log.info("Importacao de catalogo solicitada para URL: {}", sanitizar(url));
         try {
             String conteudo = catalogoImportService.importarDe(url);
             model.addAttribute("conteudo", conteudo);

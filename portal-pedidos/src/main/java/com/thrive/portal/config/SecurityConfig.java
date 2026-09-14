@@ -1,57 +1,52 @@
 package com.thrive.portal.config;
 
 import com.thrive.portal.security.JwtAuthFilter;
-import com.thrive.portal.security.Md5PasswordEncoder;
+import com.thrive.portal.security.MigratingPasswordEncoder;
+import com.thrive.portal.security.RateLimitFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
- * Configuracao de seguranca BASELINE (propositalmente fraca).
- *
- * Vulnerabilidades plantadas aqui:
- *  - A01: /admin/** exige apenas autenticacao (qualquer usuario logado),
- *         nao o papel ROLE_ADMIN  -> Lab 3.5
- *  - A05: /h2-console e /actuator liberados sem autenticacao
- *  - Session fixation desligada (.none())               -> Lab 4.3
- *  - CSRF desabilitado globalmente sem justificativa     -> Lab 4.4
- *  - PasswordEncoder MD5                                  -> Lab 3.3
- *  - Sem rate limiting no login                           -> Lab 3.4
+ * Configuracao de seguranca ENDURECIDA (branch solucao-hardened).
+ * Aplica: Lab 3.3 (BCrypt), Lab 3.4 (rate limit), Lab 3.5 (/admin ADMIN),
+ * Lab 4.2 (JWT verificado), Lab 4.3 (sessao), Lab 4.4 (CSRF), Lab 5.1 (headers),
+ * Lab 6.1 (Actuator).
  */
 @Configuration
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+    private final RateLimitFilter rateLimitFilter;
 
-    public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
+    public SecurityConfig(JwtAuthFilter jwtAuthFilter, RateLimitFilter rateLimitFilter) {
         this.jwtAuthFilter = jwtAuthFilter;
+        this.rateLimitFilter = rateLimitFilter;
     }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new Md5PasswordEncoder();
+        return new MigratingPasswordEncoder();   // Lab 3.3 (BCrypt + migracao MD5)
     }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            // A08/sessao: CSRF desabilitado globalmente
-            .csrf(AbstractHttpConfigurer::disable)
+            // Lab 4.4 - CSRF habilitado para a web; API stateless (token em header) isenta
+            .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**"))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
                         "/", "/login", "/registrar", "/esqueci-senha",
                         "/css/**", "/js/**", "/webjars/**",
-                        "/h2-console/**", "/actuator/**",
-                        "/api/auth/**", "/produtos/buscar", "/produtos")
+                        "/api/auth/**", "/produtos", "/produtos/buscar")
                     .permitAll()
-                // A01: deveria ser hasRole("ADMIN")
-                .requestMatchers("/admin/**").authenticated()
-                .requestMatchers("/api/**").permitAll()
+                .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                .requestMatchers("/actuator/**").hasRole("ADMIN")   // Lab 6.1
+                .requestMatchers("/admin/**").hasRole("ADMIN")       // Lab 3.5
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form
@@ -60,13 +55,19 @@ public class SecurityConfig {
                 .permitAll()
             )
             .logout(logout -> logout.logoutSuccessUrl("/login?logout").permitAll())
-            // sessao "stateful", mas sem protecao contra fixation
+            // Lab 4.3 - regeneracao de ID de sessao no login (anti fixation)
             .sessionManagement(session -> session
                 .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-                .sessionFixation(fixation -> fixation.none())
+                .sessionFixation(fixation -> fixation.changeSessionId())
             )
-            // necessario para o H2 console renderizar em frame
-            .headers(headers -> headers.frameOptions(frame -> frame.disable()))
+            // Lab 5.1 - headers de seguranca
+            .headers(headers -> headers
+                .frameOptions(frame -> frame.sameOrigin())
+                .contentSecurityPolicy(csp -> csp.policyDirectives("default-src 'self'"))
+                .httpStrictTransportSecurity(hsts -> hsts.includeSubDomains(true))
+            )
+            // Lab 3.4 - rate limit antes da autenticacao; Lab 4.2 - JWT
+            .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

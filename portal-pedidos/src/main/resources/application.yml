@@ -1,9 +1,6 @@
 # =====================================================================
-# Portal de Pedidos B2B - configuracao BASELINE (propositalmente insegura)
-# ---------------------------------------------------------------------
-# Perfil default = H2 (roda sem docker). Perfil "postgres" usa o banco
-# do docker-compose. As ms-configuracoes abaixo sao DIDATICAS e serao
-# corrigidas ao longo do curso (principalmente Aula 5 e Aula 6).
+# Portal de Pedidos B2B - configuracao ENDURECIDA (branch solucao-hardened)
+# Aplica as correcoes das Aulas 2-6. Perfil default = H2 (dev).
 # =====================================================================
 spring:
   application:
@@ -11,7 +8,6 @@ spring:
   profiles:
     active: h2
 
-  # A02 - dado sensivel (credencial do banco) hardcoded em texto claro no repositorio
   datasource:
     url: jdbc:h2:mem:portal;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
     username: sa
@@ -22,10 +18,7 @@ spring:
     hibernate:
       ddl-auto: none
     open-in-view: true
-    properties:
-      hibernate:
-        format_sql: true
-    show-sql: true
+    show-sql: false
 
   sql:
     init:
@@ -33,67 +26,64 @@ spring:
       schema-locations: classpath:schema.sql
       data-locations: classpath:data.sql
 
-  # A05 - H2 console habilitado e acessivel (permite inspecionar/alterar o banco pelo navegador)
+  # Lab 6.1 - H2 console desabilitado
   h2:
     console:
-      enabled: true
-      path: /h2-console
-      settings:
-        web-allow-others: true
+      enabled: false
 
   thymeleaf:
     cache: false
 
   servlet:
     multipart:
-      # A04/A03 - sem limite efetivo de tamanho de upload no baseline
-      max-file-size: 100MB
-      max-request-size: 100MB
+      # Lab 2.4 - limite de upload
+      max-file-size: 5MB
+      max-request-size: 6MB
 
 server:
   port: 8080
   servlet:
     session:
       cookie:
-        # A05/Session Management - flags de seguranca desligadas no baseline (Lab 4.3)
-        http-only: false
-        secure: false
+        # Lab 4.3 - flags de seguranca do cookie de sessao
+        http-only: true
+        secure: false        # DEV ONLY (sem HTTPS local). Em producao: true
         same-site: lax
+      timeout: 15m
   error:
-    # A05 / A09 - vaza stack trace e mensagem de excecao para o cliente
-    include-message: always
-    include-stacktrace: always
-    include-exception: true
-    include-binding-errors: always
+    # Lab 5.1 - nao vazar detalhe ao cliente
+    include-message: never
+    include-stacktrace: never
+    include-exception: false
+    include-binding-errors: never
 
-# A05 - TODOS os endpoints do Actuator expostos sem autenticacao
+# Lab 6.1 - Actuator minimo; endpoints sensiveis protegidos no SecurityConfig
 management:
   endpoints:
     web:
       exposure:
-        include: "*"
+        include: health,info
   endpoint:
     health:
-      show-details: always
+      show-details: never
     env:
-      show-values: always
+      show-values: never
 
 # ---------------------------------------------------------------------
-# Configuracoes da aplicacao (chaves fracas / hardcoded de proposito)
+# Segredos: em producao vem de variavel de ambiente / secrets manager.
+# Os defaults abaixo sao DEV ONLY e NAO devem ser usados em producao.
 # ---------------------------------------------------------------------
 portal:
-  # A02 - segredo do JWT fraco e commitado no repositorio
   jwt:
-    secret: "portal-secret-2024"
-    expiration-ms: 86400000   # 24h - expiracao longa demais (A07)
-  upload:
-    # A05 - anexos gravados dentro de diretorio servido / sem isolamento
-    dir: ./uploads
-  # A02 - "chave" usada para "proteger" dados de pagamento (na verdade e so Base64)
+    # Lab 4.2 - chave Base64 (>=32 bytes). Override: PORTAL_JWT_SECRET
+    secret: ${PORTAL_JWT_SECRET:AyjpJmIAw5EyzdygA5Ydd2vm8pp5Sqed7wDAk6MFKbY=}
+    expiration-ms: 900000    # 15 min
   crypto:
-    enabled: false
+    # Lab 4.1 - chave Base64 de 32 bytes (AES-256). Override: PORTAL_CRYPTO_KEY
+    key: ${PORTAL_CRYPTO_KEY:cMlQRds5K9r42D8FYoxCQhM/vdyxStTh1Ew+OsG9Gjs=}
+  upload:
+    dir: ./uploads
 
 logging:
   level:
-    org.hibernate.SQL: DEBUG
-    com.thrive.portal: DEBUG
+    com.thrive.portal: INFO

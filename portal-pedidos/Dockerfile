@@ -1,21 +1,22 @@
 # =====================================================================
-# Dockerfile BASELINE (propositalmente inseguro) - corrigido no Lab 6.3.
-# Problemas plantados:
-#  - build "fat" numa unica stage (imagem grande, com Maven e fontes)
-#  - roda como root
-#  - segredo hardcoded via ENV dentro da imagem
+# Dockerfile ENDURECIDO (Lab 6.3): multi-stage, usuario nao-root, sem segredos.
+# Segredos (PORTAL_JWT_SECRET, PORTAL_CRYPTO_KEY, DB_PASSWORD) vem em RUNTIME.
 # =====================================================================
-FROM eclipse-temurin:17-jdk
 
+# ---- build stage ----
+FROM eclipse-temurin:17-jdk AS build
+WORKDIR /src
+COPY .mvn/ .mvn/
+COPY mvnw pom.xml ./
+RUN ./mvnw -q -B -DskipTests dependency:go-offline
+COPY src/ src/
+RUN ./mvnw -q -B -DskipTests package
+
+# ---- runtime stage ----
+FROM eclipse-temurin:17-jre
+RUN useradd -r -u 1001 appuser
 WORKDIR /app
-COPY . .
-
-# A02 - segredo embutido na imagem (fica em plaintext nas layers)
-ENV PORTAL_JWT_SECRET="portal-secret-2024"
-ENV DB_PASSWORD="portal"
-
-RUN ./mvnw -q -DskipTests package || mvn -q -DskipTests package
-
+COPY --from=build /src/target/portal-pedidos.jar app.jar
+USER appuser
 EXPOSE 8080
-# roda como root (nenhum USER definido)
-ENTRYPOINT ["java", "-jar", "target/portal-pedidos.jar"]
+ENTRYPOINT ["java", "-jar", "app.jar"]

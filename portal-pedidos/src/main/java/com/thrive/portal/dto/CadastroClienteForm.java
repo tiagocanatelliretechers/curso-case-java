@@ -1,14 +1,28 @@
 package com.thrive.portal.dto;
 
-/**
- * DTO de cadastro de cliente. No baseline NAO possui nenhuma anotacao de
- * Bean Validation (Jakarta Validation) - qualquer valor e aceito.
- * As anotacoes (@NotBlank, @Email, @Size, @CNPJ...) sao adicionadas no Lab 2.3.
- */
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
+/** Lab 2.3 - DTO com Bean Validation (allowlist de formato/tamanho) + @CNPJ. */
 public class CadastroClienteForm {
+
+    @NotBlank
+    @Size(max = 150)
     private String razaoSocial;
+
+    @NotBlank
+    @CNPJ
     private String cnpj;
+
+    @NotBlank
+    @Email
+    @Size(max = 180)
     private String email;
+
+    // Lab 3.4 - politica minima de senha
+    @NotBlank
+    @Size(min = 10, max = 100)
     private String senha;
 
     public String getRazaoSocial() { return razaoSocial; }

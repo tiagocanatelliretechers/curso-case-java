@@ -31,16 +31,13 @@ public class PedidoApiController {
         return u == null ? List.of() : pedidoService.doCliente(u.getClienteId());
     }
 
-    /**
-     * A01 - object-level authorization ausente (IDOR na API).
-     * Qualquer token valido consulta qualquer pedido pelo id.
-     */
+    /** Lab 3.2 - object-level authorization: verifica posse antes de retornar. */
     @GetMapping("/{id}")
-    public ResponseEntity<?> porId(@PathVariable Long id) {
-        Pedido pedido = pedidoService.porId(id);
-        if (pedido == null) {
-            return ResponseEntity.notFound().build();
-        }
+    public ResponseEntity<?> porId(@PathVariable Long id, Principal principal) {
+        Usuario u = principal == null ? null
+                : usuarioService.porEmail(principal.getName()).orElse(null);
+        Long clienteId = u == null ? null : u.getClienteId();
+        Pedido pedido = pedidoService.porIdDoCliente(id, clienteId); // lanca 403/404
         return ResponseEntity.ok(pedido);
     }
 }

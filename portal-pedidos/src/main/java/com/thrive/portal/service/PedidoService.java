@@ -3,7 +3,10 @@ package com.thrive.portal.service;
 import com.thrive.portal.domain.ItemPedido;
 import com.thrive.portal.domain.Pedido;
 import com.thrive.portal.repository.PedidoRepository;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -24,15 +27,16 @@ public class PedidoService {
     }
 
     /**
-     * A01 - Broken Access Control (IDOR).
-     *
-     * Busca o pedido apenas pelo id, SEM verificar se ele pertence ao cliente
-     * autenticado. Basta trocar o {id} na URL para ver o pedido de outro cliente.
-     *
-     * Sera corrigido no Lab 3.2 (checagem de posse no service + @PostAuthorize).
+     * Lab 3.2 - IDOR corrigido: exige o cliente autenticado e verifica a POSSE
+     * do recurso antes de retorna-lo. Cliente que nao e dono recebe 403.
      */
-    public Pedido porId(Long id) {
-        return pedidoRepository.findById(id).orElse(null);
+    public Pedido porIdDoCliente(Long id, Long clienteId) {
+        Pedido pedido = pedidoRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Pedido nao encontrado"));
+        if (clienteId == null || !pedido.getClienteId().equals(clienteId)) {
+            throw new AccessDeniedException("Pedido nao pertence ao cliente autenticado");
+        }
+        return pedido;
     }
 
     public Pedido criar(Long clienteId, List<ItemPedido> itens) {

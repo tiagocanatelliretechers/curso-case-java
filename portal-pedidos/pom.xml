@@ -84,16 +84,18 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!--
-          A06 - Vulnerable and Outdated Components (DIDATICO):
-          commons-text 1.9 possui a CVE-2022-42889 ("Text4Shell").
-          Sera detectado pelo OWASP Dependency-Check no Lab 6.2 e corrigido la.
-          NAO atualize esta versao nas aulas 1-5.
-        -->
+        <!-- A06 corrigido (Lab 6.2): commons-text atualizado (CVE-2022-42889 resolvida) -->
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-text</artifactId>
-            <version>1.9</version>
+            <version>1.11.0</version>
+        </dependency>
+
+        <!-- Rate limiting no login (Lab 3.4) -->
+        <dependency>
+            <groupId>com.bucket4j</groupId>
+            <artifactId>bucket4j-core</artifactId>
+            <version>8.7.0</version>
         </dependency>
 
         <!-- Bean Validation: disponivel, mas NAO usado no baseline (sera introduzido na Aula 2) -->
