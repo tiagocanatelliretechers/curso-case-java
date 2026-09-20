@@ -7,6 +7,27 @@ com **um único script** (Linux/macOS e Windows).
 
 ---
 
+## 0. Instalar os pré-requisitos (uma vez, na máquina do aluno)
+
+Máquina zerada? Um script instala **Git, Java 17, Maven, Docker e o Eclipse (Enterprise Java)**:
+
+**Windows** (usa o `winget`, que já vem no Windows 10/11 — de preferência num PowerShell "como Administrador"):
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass   # se necessário
+.\scripts\setup.ps1
+```
+
+**macOS / Linux** (macOS usa Homebrew; Linux usa apt + sudo):
+```bash
+chmod +x scripts/setup.sh
+./scripts/setup.sh
+```
+
+Flags: `--skip-docker`, `--skip-eclipse`, `--skip-maven`, `--java 21` (PowerShell: `-SkipDocker`, `-SkipEclipse`, `-SkipMaven`, `-JavaVersion 21`).
+Depois **feche e reabra o terminal** (PATH/JAVA_HOME) e abra o Docker uma vez até "Engine running".
+
+---
+
 ## 1. Onde está cada coisa
 
 | O quê | Onde |
@@ -17,6 +38,7 @@ com **um único script** (Linux/macOS e Windows).
 | Gabarito (instrutor) | `materiais/aula-N/gabarito.md` |
 | Anexos (fichas, CTF, checklist) | `materiais/aula-N/anexos/` |
 | Infra (Docker) | `infra/docker-compose.yml` |
+| Scripts de setup (instalar tudo) | `scripts/setup.sh` (macOS/Linux) · `scripts/setup.ps1` (Windows) |
 | Scripts de ambiente | `scripts/start.sh` (Linux/macOS) · `scripts/start.ps1` (Windows) |
 
 ## 2. Os codebases dos labs são TAGS do Git

@@ -18,6 +18,17 @@ materiais/
 LABS.md             mapa de execução dos labs (onde, como, com um comando)
 ```
 
+## Instalar os pré-requisitos (máquina zerada)
+
+Um script instala Git, Java 17, Maven, Docker e o Eclipse:
+
+```powershell
+.\scripts\setup.ps1            # Windows (winget)
+```
+```bash
+./scripts/setup.sh             # macOS (Homebrew) / Linux (apt)
+```
+
 ## Subir o ambiente com um comando
 
 ```bash
