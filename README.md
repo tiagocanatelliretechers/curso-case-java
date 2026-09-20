@@ -8,11 +8,27 @@ formato CASE, para desenvolvedores Java com 2+ anos de experiência.
 ```
 portal-pedidos/     Aplicação de referência (Spring Boot, propositalmente vulnerável)
                     -> os laboratórios de todas as aulas evoluem este projeto
+infra/              docker-compose da infra (app + Postgres + SonarQube)
+scripts/            start.sh (Linux/macOS) e start.ps1 (Windows) — sobem tudo
 materiais/
-  aula-1/ .. aula-6/  slides (outline), guia de lab, gabarito, quiz, anexos
+  aula-1/ .. aula-6/  slides, conteúdo, guia de lab, gabarito, quiz, anexos
+  MANUAL-AMBIENTE-ALUNO.md
   mapa-rastreabilidade.md
   simulado-final.md
+LABS.md             mapa de execução dos labs (onde, como, com um comando)
 ```
+
+## Subir o ambiente com um comando
+
+```bash
+./scripts/start.sh --lab 1     # Linux/macOS: checkout do lab + sobe app+banco
+```
+```powershell
+.\scripts\start.ps1 -Lab 1     # Windows (PowerShell)
+```
+
+Acesse <http://localhost:8080>. Detalhes, flags (`--sonar`, `--dev`, `--stop`) e a
+dinâmica dos laboratórios: ver **[LABS.md](LABS.md)**.
 
 ## As 6 aulas
 
