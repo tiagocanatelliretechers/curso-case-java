@@ -11,7 +11,9 @@ com **um único script** (Linux/macOS e Windows).
 
 Máquina zerada? Um script instala **Git, Java 17, Maven, Docker e o Eclipse (Enterprise Java)**:
 
-**Windows** (usa o `winget`, que já vem no Windows 10/11 — de preferência num PowerShell "como Administrador"):
+**Windows — um clique:** dê **duplo-clique em `scripts\setup.bat`**. Ele pede admin (UAC) e roda o instalador sozinho. (O `start.bat` sobe o ambiente do mesmo jeito.)
+
+Ou pelo PowerShell (usa o `winget`, que já vem no Windows 10/11 — de preferência "como Administrador"):
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass   # se necessário
 .\scripts\setup.ps1
