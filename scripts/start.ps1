@@ -8,6 +8,7 @@
    .\scripts\start.ps1 -Lab 3 -Hard     usa a solucao (aula-3-hardened)
    .\scripts\start.ps1 -Sonar           sobe tambem o SonarQube (Aula 5) em :9000
    .\scripts\start.ps1 -Dev             sobe so o banco; roda a app via .\mvnw.cmd
+   .\scripts\start.ps1 -NoDocker        SEM Docker: roda a app em H2 (memoria)
    .\scripts\start.ps1 -Check           so verifica os pre-requisitos
    .\scripts\start.ps1 -Stop            derruba tudo
 
@@ -19,6 +20,7 @@ param(
   [string]$Lab = "",
   [switch]$Sonar,
   [switch]$Dev,
+  [switch]$NoDocker,   # roda a app em H2 (memoria), sem Docker/containers
   [switch]$Check,
   [switch]$Stop,
   [switch]$Hard
@@ -48,13 +50,20 @@ function Compose { param([Parameter(ValueFromRemainingArguments=$true)]$a)
 function Check-Prereqs {
   Write-Host "Verificando pre-requisitos..."
   $fail = $false
-  if (Get-Command java -ErrorAction SilentlyContinue) { Ok ("Java: " + ((java -version 2>&1)[0])) } else { Warn "Java 17+ nao encontrado (necessario so no modo -Dev)" }
+  $usaMvn = ($NoDocker -or $Dev)   # esses modos rodam a app via mvnw -> exigem Java
+  if (Get-Command java -ErrorAction SilentlyContinue) { Ok ("Java: " + ((java -version 2>&1)[0])) }
+  elseif ($usaMvn) { Err "Java 17+ nao encontrado (necessario neste modo)"; $fail = $true }
+  else { Warn "Java 17+ nao encontrado (ok: o modo Docker nao precisa)" }
   if (Get-Command git -ErrorAction SilentlyContinue) { Ok ("Git: " + (git --version)) } else { Err "Git nao encontrado"; $fail = $true }
-  if (Get-Command docker -ErrorAction SilentlyContinue) {
-    try { docker info *> $null; Ok ("Docker: " + (docker --version)) } catch { Err "Docker instalado, mas o daemon nao esta rodando (abra o Docker Desktop)"; $fail = $true }
-  } else { Err "Docker nao encontrado"; $fail = $true }
-  $script:DC = Get-Compose
-  if ($script:DC) { Ok "Compose disponivel" } else { Err "Docker Compose nao encontrado"; $fail = $true }
+  if ($NoDocker) {
+    Ok "Modo sem Docker (H2) - Docker nao e necessario."
+  } else {
+    if (Get-Command docker -ErrorAction SilentlyContinue) {
+      try { docker info *> $null; Ok ("Docker: " + (docker --version)) } catch { Err "Docker instalado, mas o daemon nao esta rodando (abra o Docker Desktop). Sem Docker? use -NoDocker"; $fail = $true }
+    } else { Err "Docker nao encontrado. Para rodar sem Docker (em H2): .\scripts\start.ps1 -NoDocker"; $fail = $true }
+    $script:DC = Get-Compose
+    if ($script:DC) { Ok "Compose disponivel" } else { Err "Docker Compose nao encontrado"; $fail = $true }
+  }
   return (-not $fail)
 }
 
@@ -96,7 +105,22 @@ if ($Lab -ne "") {
   git checkout -q $tag; Ok "Codebase em $tag"
 }
 
-if ($Dev) {
+if ($NoDocker) {
+  Write-Host "Modo SEM DOCKER: app em H2 (memoria), sem banco/containers..."
+  Set-Location $APP
+  # defaults inofensivos (o baseline nem usa; versoes hardened leem do ambiente)
+  if (-not $env:PORTAL_JWT_SECRET) { $env:PORTAL_JWT_SECRET = "AyjpJmIAw5EyzdygA5Ydd2vm8pp5Sqed7wDAk6MFKbY=" }
+  if (-not $env:PORTAL_CRYPTO_KEY) { $env:PORTAL_CRYPTO_KEY = "cMlQRds5K9r42D8FYoxCQhM/vdyxStTh1Ew+OsG9Gjs=" }
+  Write-Host ""
+  Write-Host "================ AMBIENTE (H2, sem Docker) ================" -ForegroundColor Cyan
+  Write-Host "  App .............. http://localhost:8080"
+  Write-Host "  Console do H2 .... http://localhost:8080/h2-console"
+  Write-Host "  Contas: admin@portal.com/admin123 . joao@acme.com/senha123"
+  Write-Host "  (a app roda em primeiro plano; Ctrl+C encerra)"
+  Write-Host "==========================================================" -ForegroundColor Cyan
+  Write-Host ""
+  & .\mvnw.cmd spring-boot:run
+} elseif ($Dev) {
   Write-Host "Modo DEV: so o banco no Docker; app via .\mvnw.cmd..."
   Compose -f $COMPOSE up -d db
   if ($Sonar) { Compose -f $COMPOSE --profile sonar up -d sonarqube }

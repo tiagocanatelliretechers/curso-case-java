@@ -8,6 +8,7 @@
 #   ./scripts/start.sh --lab 3 --hard  usa a solução (aula-3-hardened) em vez do baseline
 #   ./scripts/start.sh --sonar         sobe também o SonarQube (Aula 5) em :9000
 #   ./scripts/start.sh --dev           sobe só o banco; roda a app via ./mvnw (editar/debug)
+#   ./scripts/start.sh --no-docker     SEM Docker: roda a app em H2 (memória)
 #   ./scripts/start.sh --check         só verifica os pré-requisitos
 #   ./scripts/start.sh --stop          derruba tudo
 #   ./scripts/start.sh --help
@@ -19,12 +20,13 @@ ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 APP="$ROOT/portal-pedidos"
 COMPOSE="$ROOT/infra/docker-compose.yml"
 
-LAB=""; SONAR=0; DEV=0; CHECK=0; STOP=0; HARD=0
+LAB=""; SONAR=0; DEV=0; NODOCKER=0; CHECK=0; STOP=0; HARD=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --lab) LAB="${2:-}"; shift 2;;
     --sonar) SONAR=1; shift;;
     --dev) DEV=1; shift;;
+    --no-docker|--nodocker|--h2) NODOCKER=1; shift;;
     --check) CHECK=1; shift;;
     --stop) STOP=1; shift;;
     --hard|--hardened) HARD=1; shift;;
@@ -43,13 +45,19 @@ detect_compose(){ if docker compose version >/dev/null 2>&1; then DCOMPOSE="dock
 
 check_prereqs(){
   echo "Verificando pré-requisitos..."; local fail=0
-  if command -v java >/dev/null 2>&1; then ok "Java: $(java -version 2>&1 | head -1)"; else warn "Java 17+ não encontrado (necessário só no modo --dev)"; fi
+  if command -v java >/dev/null 2>&1; then ok "Java: $(java -version 2>&1 | head -1)";
+  elif [ "$NODOCKER" = "1" ] || [ "$DEV" = "1" ]; then err "Java 17+ não encontrado (necessário neste modo)"; fail=1;
+  else warn "Java 17+ não encontrado (ok: o modo Docker não precisa)"; fi
   if command -v git >/dev/null 2>&1; then ok "Git: $(git --version)"; else err "Git não encontrado"; fail=1; fi
-  if command -v docker >/dev/null 2>&1; then
-    if docker info >/dev/null 2>&1; then ok "Docker: $(docker --version)"; else err "Docker instalado, mas o daemon não está rodando (abra o Docker Desktop)"; fail=1; fi
-  else err "Docker não encontrado"; fail=1; fi
-  detect_compose
-  if [ -n "$DCOMPOSE" ]; then ok "Compose: $DCOMPOSE"; else err "Docker Compose não encontrado"; fail=1; fi
+  if [ "$NODOCKER" = "1" ]; then
+    ok "Modo sem Docker (H2) — Docker não é necessário."
+  else
+    if command -v docker >/dev/null 2>&1; then
+      if docker info >/dev/null 2>&1; then ok "Docker: $(docker --version)"; else err "Docker instalado, mas o daemon não está rodando. Sem Docker? use --no-docker"; fail=1; fi
+    else err "Docker não encontrado. Para rodar sem Docker (H2): ./scripts/start.sh --no-docker"; fail=1; fi
+    detect_compose
+    if [ -n "$DCOMPOSE" ]; then ok "Compose: $DCOMPOSE"; else err "Docker Compose não encontrado"; fail=1; fi
+  fi
   return $fail
 }
 
@@ -90,7 +98,19 @@ if [ -n "$LAB" ]; then
   git checkout -q "$tag"; ok "Codebase em $tag"
 fi
 
-if [ "$DEV" = "1" ]; then
+if [ "$NODOCKER" = "1" ]; then
+  echo "Modo SEM DOCKER: app em H2 (memória), sem banco/containers..."
+  cd "$APP"
+  export PORTAL_JWT_SECRET="${PORTAL_JWT_SECRET:-AyjpJmIAw5EyzdygA5Ydd2vm8pp5Sqed7wDAk6MFKbY=}"
+  export PORTAL_CRYPTO_KEY="${PORTAL_CRYPTO_KEY:-cMlQRds5K9r42D8FYoxCQhM/vdyxStTh1Ew+OsG9Gjs=}"
+  echo; c "1;36" "================ AMBIENTE (H2, sem Docker) ================"
+  echo "  App .............. http://localhost:8080"
+  echo "  Console do H2 .... http://localhost:8080/h2-console"
+  echo "  Contas: admin@portal.com/admin123 · joao@acme.com/senha123"
+  echo "  (a app roda em primeiro plano; Ctrl+C encerra)"
+  c "1;36" "=========================================================="; echo
+  ./mvnw spring-boot:run
+elif [ "$DEV" = "1" ]; then
   echo "Modo DEV: só o banco no Docker; app via ./mvnw..."
   $DCOMPOSE -f "$COMPOSE" up -d db
   [ "$SONAR" = "1" ] && { tune_sysctl_for_sonar; $DCOMPOSE -f "$COMPOSE" --profile sonar up -d sonarqube; }
