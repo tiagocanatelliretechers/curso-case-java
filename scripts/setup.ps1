@@ -100,11 +100,19 @@ Install-Pkg -Id $javaId -Nome "Java (Temurin JDK $JavaVersion)" `
 # 3) Maven (opcional: nao existe no winget; baixa da Apache. O projeto usa .\mvnw.cmd)
 if (-not $SkipMaven) { Install-Maven }
 
-# 4) Docker Desktop
+# 4) Docker Desktop (habilita o WSL2 antes - pre-requisito)
 if (-not $SkipDocker) {
+  Info "Habilitando WSL2 (pre-requisito do Docker Desktop)..."
+  try { & wsl --install --no-distribution *> $null } catch {}
+  try {
+    dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart *> $null
+    dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart *> $null
+    Ok "Recursos de WSL2 habilitados (efetivam apos reiniciar)."
+  } catch { Warn "Nao consegui habilitar o WSL2 automaticamente: $($_.Exception.Message)" }
+
   Install-Pkg -Id "Docker.DockerDesktop" -Nome "Docker Desktop"
-  Warn "Docker Desktop: abra o app uma vez, aceite os termos e aguarde 'Engine running'."
-  Warn "Ele pode instalar/atualizar o WSL2 e pedir REINICIAR o Windows."
+  Warn "Docker Desktop: apos REINICIAR o Windows, abra o app uma vez e aguarde 'Engine running'."
+  Warn "Em VM VMware o Docker so roda se a VIRTUALIZACAO ANINHADA estiver ligada; senao use start.ps1 -NoDocker."
 }
 
 # 5) Eclipse IDE for Enterprise Java and Web Developers
