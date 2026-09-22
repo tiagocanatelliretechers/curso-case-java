@@ -9,10 +9,15 @@ REM  Voce pode passar flags: setup.bat -SkipDocker  /  -JavaVersion 21
 REM ===================================================================
 
 REM --- se nao estiver como admin, reabre elevado (mantendo os argumentos) ---
+REM  Sem argumentos NAO se passa -ArgumentList (string vazia da erro).
 net session >nul 2>&1
 if %errorlevel% neq 0 (
   echo Solicitando permissao de administrador...
-  powershell -NoProfile -Command "Start-Process -Verb RunAs -FilePath '%~f0' -ArgumentList '%*'"
+  if "%~1"=="" (
+    powershell -NoProfile -Command "Start-Process -Verb RunAs -FilePath '%~f0'"
+  ) else (
+    powershell -NoProfile -Command "Start-Process -Verb RunAs -FilePath '%~f0' -ArgumentList '%*'"
+  )
   exit /b
 )
 
