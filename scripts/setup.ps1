@@ -61,6 +61,30 @@ function Install-Pkg {
   else { Warn "$Nome retornou codigo $LASTEXITCODE (pode ja estar instalado ou exigir reinicio)." }
 }
 
+# Maven NAO existe no catalogo do winget -> baixa direto da Apache (fonte permanente).
+# E opcional: o projeto usa .\mvnw.cmd e o Eclipse traz Maven embutido.
+function Install-Maven {
+  param([string]$Ver = "3.9.9")
+  if (Get-Command mvn -ErrorAction SilentlyContinue) { Ok "Maven ja instalado."; return }
+  $dest = "C:\tools\apache-maven-$Ver"
+  if (-not (Test-Path "$dest\bin\mvn.cmd")) {
+    $zip = Join-Path $env:TEMP "apache-maven-$Ver-bin.zip"
+    $url = "https://archive.apache.org/dist/maven/maven-3/$Ver/binaries/apache-maven-$Ver-bin.zip"
+    try {
+      Info "Baixando Apache Maven $Ver (Apache archive)..."
+      Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $zip
+      New-Item -ItemType Directory -Force -Path "C:\tools" | Out-Null
+      Expand-Archive -Path $zip -DestinationPath "C:\tools" -Force
+      Remove-Item $zip -ErrorAction SilentlyContinue
+      Ok "Maven extraido em $dest"
+    } catch { Warn "Nao consegui baixar o Maven ($($_.Exception.Message)). Opcional - use .\mvnw.cmd."; return }
+  } else { Ok "Maven ja em $dest" }
+  [Environment]::SetEnvironmentVariable("MAVEN_HOME", $dest, "User")
+  $up = [Environment]::GetEnvironmentVariable("Path","User")
+  if ($up -notlike "*$dest\bin*") { [Environment]::SetEnvironmentVariable("Path", "$up;$dest\bin", "User") }
+  Ok "Maven no PATH do usuario (reabra o terminal para valer)."
+}
+
 Write-Host ""
 Write-Host "==================== SETUP DE PRE-REQUISITOS ====================" -ForegroundColor Cyan
 Write-Host ""
@@ -73,8 +97,8 @@ $javaId = "EclipseAdoptium.Temurin.$JavaVersion.JDK"
 Install-Pkg -Id $javaId -Nome "Java (Temurin JDK $JavaVersion)" `
   -Override "/passive ADDLOCAL=FeatureMain,FeatureEnvironment,FeatureJavaHome"
 
-# 3) Maven (o projeto tem ./mvnw, mas instalamos o Maven global tambem)
-if (-not $SkipMaven) { Install-Pkg -Id "Apache.Maven" -Nome "Apache Maven" }
+# 3) Maven (opcional: nao existe no winget; baixa da Apache. O projeto usa .\mvnw.cmd)
+if (-not $SkipMaven) { Install-Maven }
 
 # 4) Docker Desktop
 if (-not $SkipDocker) {
