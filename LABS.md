@@ -19,6 +19,11 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass   # se necessário
 .\scripts\setup.ps1
 ```
 
+**Alternativa via Chocolatey** (mais confiável para Maven e Eclipse — o winget não tem Maven e o Eclipse falha por hash). Duplo-clique em `scripts\setup-choco.bat`, ou:
+```powershell
+.\scripts\setup-choco.ps1
+```
+
 **macOS / Linux** (macOS usa Homebrew; Linux usa apt + sudo):
 ```bash
 chmod +x scripts/setup.sh
