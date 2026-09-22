@@ -55,9 +55,11 @@ server:
   servlet:
     session:
       cookie:
-        # A05/Session Management - flags de seguranca desligadas no baseline (Lab 4.3)
+        # A05/Session Management - flags de seguranca fracas no baseline (Lab 4.3)
         http-only: false
         secure: false
+        # 'lax' (nao 'none'): SameSite=None exige Secure/HTTPS e o Chrome
+        # descarta o cookie em http://localhost, quebrando o login.
         same-site: lax
   error:
     # A05 / A09 - vaza stack trace e mensagem de excecao para o cliente
