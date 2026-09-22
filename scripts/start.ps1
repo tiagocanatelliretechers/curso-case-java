@@ -24,6 +24,9 @@ param(
   [switch]$Hard
 )
 $ErrorActionPreference = "Stop"
+# PowerShell 7+: stderr e exit codes de comandos nativos (ex.: `java -version`,
+# `docker info`) NAO devem abortar o script. Sem isto, o "Stop" acima mata tudo.
+$PSNativeCommandUseErrorActionPreference = $false
 
 $ROOT    = Split-Path -Parent $PSScriptRoot
 $APP     = Join-Path $ROOT "portal-pedidos"

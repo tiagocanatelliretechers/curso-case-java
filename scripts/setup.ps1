@@ -28,6 +28,9 @@ param(
   [switch]$SkipMaven
 )
 $ErrorActionPreference = "Stop"
+# PowerShell 7+: stderr / exit codes de comandos nativos (winget, java) NAO devem
+# abortar o script. Sem isto, o `winget list` de um pacote ausente mata o setup.
+$PSNativeCommandUseErrorActionPreference = $false
 
 function Ok($m){ Write-Host "  [ok] $m" -ForegroundColor Green }
 function Info($m){ Write-Host "  [..] $m" -ForegroundColor Cyan }
