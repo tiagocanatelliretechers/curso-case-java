@@ -1,0 +1,669 @@
+{
+  "info": {
+    "name": "Curso CASE Java — Cenários (Aulas 3–6)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Cenários de ataque e correção do Portal de Pedidos B2B. Cada requisição indica no teste o resultado esperado no **baseline** (vulnerável) e no **hardened** (corrigido). Variável {{baseURL}} = http://localhost:8080. Rode o app com ./scripts/start.sh --no-docker e comece pela pasta '00 Setup'."
+  },
+  "variable": [
+    {
+      "key": "baseURL",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "tokenJoao",
+      "value": ""
+    },
+    {
+      "key": "tokenAdmin",
+      "value": ""
+    },
+    {
+      "key": "forgedToken",
+      "value": "eyJhbGciOiJub25lIn0.eyJzdWIiOiJqb2FvQGFjbWUuY29tIiwicm9sZSI6IlJPTEVfQURNSU4ifQ."
+    }
+  ],
+  "item": [
+    {
+      "name": "00 · Setup / Login",
+      "item": [
+        {
+          "name": "Login — João (cliente)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseURL}}/api/auth/login",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"joao@acme.com\",\"senha\":\"senha123\"}"
+            },
+            "description": "Autentica o João e guarda o token em {{tokenJoao}}. Rode primeiro."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var j=pm.response.json();",
+                  "if(j&&j.token){pm.collectionVariables.set('tokenJoao',j.token);}",
+                  "pm.test('login 200 e token recebido',()=>{pm.response.to.have.status(200);pm.expect(j.token).to.be.a('string');});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login — Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseURL}}/api/auth/login",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"admin@portal.com\",\"senha\":\"admin123\"}"
+            },
+            "description": "Autentica o admin e guarda o token em {{tokenAdmin}}."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var j=pm.response.json();",
+                  "if(j&&j.token){pm.collectionVariables.set('tokenAdmin',j.token);}",
+                  "pm.test('login 200 e token recebido',()=>{pm.response.to.have.status(200);pm.expect(j.token).to.be.a('string');});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Aula 3 · Autorização & Senhas",
+      "item": [
+        {
+          "name": "IDOR — meu pedido (esperado 200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenJoao}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseURL}}/api/pedidos/1",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "pedidos",
+                "1"
+              ]
+            },
+            "description": "Acesso legítimo ao próprio pedido do João (cliente 1). Deve ser 200 em baseline e hardened."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('próprio pedido: 200',()=>pm.expect([200]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "IDOR — pedido alheio (200=VULN / 403=OK)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenJoao}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseURL}}/api/pedidos/2",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "pedidos",
+                "2"
+              ]
+            },
+            "description": "João tentando ler o pedido 2 (de outro cliente). BASELINE: 200 (IDOR!). HARDENED: 403 (posse no PedidoService). Lab 3.1/3.2."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "console.log('IDOR alheio -> '+pm.response.code+'  (200=baseline VULNERÁVEL, 403=hardened OK)');",
+                  "pm.test('200=baseline(VULN) ou 403/404=hardened(OK)',()=>pm.expect([200,403,404]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Rate limiting — senha errada (rode 6x: ...→429)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseURL}}/api/auth/login",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\"email\":\"joao@acme.com\",\"senha\":\"errada\"}"
+            },
+            "description": "Brute force. Envie 6x seguidas (ou use o Runner com 6 iterações). BASELINE: sempre 401. HARDENED: por volta da 6ª vem 429. Lab 3.4."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "console.log('tentativa -> '+pm.response.code+'  (401=credencial inválida, 429=bloqueado/hardened)');",
+                  "pm.test('401 (inválida) ou 429 (bloqueado)',()=>pm.expect([401,429,400]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "RBAC /admin — como João (200=VULN / 403=OK)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenJoao}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseURL}}/admin",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "admin"
+              ]
+            },
+            "description": "Cliente comum acessando o painel admin (escalada vertical). BASELINE: entra. HARDENED: 403. Lab 3.5."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "console.log('/admin (joão) -> '+pm.response.code+'  (200=baseline VULN, 403=hardened OK)');",
+                  "pm.test('200=baseline(VULN) ou 403=hardened(OK)',()=>pm.expect([200,302,403]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "RBAC /admin — como Admin (esperado 200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenAdmin}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseURL}}/admin",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "admin"
+              ]
+            },
+            "description": "Admin acessando o painel — deve funcionar nos dois estados."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('admin acessa /admin',()=>pm.expect([200,302]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Aula 4 · Criptografia & Sessão",
+      "item": [
+        {
+          "name": "JWT forjado alg:none (200=VULN / 401=OK)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{forgedToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseURL}}/api/pedidos",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "pedidos"
+              ]
+            },
+            "description": "Token forjado (alg:none, role ADMIN, sem assinatura). BASELINE: 200 (aceito!). HARDENED: 401 (assinatura verificada). Lab 4.2."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "console.log('JWT forjado -> '+pm.response.code+'  (200=baseline VULN, 401=hardened OK)');",
+                  "pm.test('200=baseline(VULN) ou 401=hardened(OK)',()=>pm.expect([200,401]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "JWT legítimo (esperado 200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{tokenJoao}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseURL}}/api/pedidos",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "pedidos"
+              ]
+            },
+            "description": "Token válido do login deve continuar funcionando nos dois estados."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('token legítimo: 200',()=>pm.expect([200]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cookie de sessão — flags (HttpOnly no hardened)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/login",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "login"
+              ]
+            },
+            "description": "Inspeciona o Set-Cookie da sessão. HARDENED: cookie com HttpOnly/SameSite. BASELINE: sem HttpOnly."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var sc=pm.response.headers.get('Set-Cookie')||'';",
+                  "console.log('Set-Cookie: '+sc);",
+                  "pm.test('resposta 200',()=>pm.response.to.have.status(200));",
+                  "pm.test('HttpOnly presente? (hardened)',()=>pm.expect(/HttpOnly/i.test(sc)).to.be.a('boolean'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "CSRF — login web (obtém cookie de sessão)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": {
+              "raw": "{{baseURL}}/login",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "username",
+                  "value": "joao@acme.com"
+                },
+                {
+                  "key": "password",
+                  "value": "senha123"
+                }
+              ]
+            },
+            "description": "Faz login web para popular o cookie JSESSIONID no jar do Postman (pré-requisito do teste de CSRF)."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login web (200/302)',()=>pm.expect([200,302]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "CSRF — POST sem token (2xx=VULN / 403=OK)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/x-www-form-urlencoded"
+              }
+            ],
+            "url": {
+              "raw": "{{baseURL}}/pedidos",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "pedidos"
+              ]
+            },
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "item",
+                  "value": "X"
+                },
+                {
+                  "key": "quantidade",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "POST de escrita SEM token CSRF, usando o cookie da sessão (simula site externo). BASELINE: aceito. HARDENED: 403. Rode antes o 'login web'. Lab 4.4."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "console.log('POST sem CSRF -> '+pm.response.code+'  (2xx/302=baseline VULN, 403=hardened OK)');",
+                  "pm.test('2xx/302=baseline(VULN) ou 403=hardened(OK)',()=>pm.expect([200,201,302,403]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Aula 5 · Erros + SAST/DAST",
+      "item": [
+        {
+          "name": "Error handling — id inválido (stack trace=VULN)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/pedidos/abc",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "pedidos",
+                "abc"
+              ]
+            },
+            "description": "Id inválido. BASELINE: vaza stack trace/exceção no corpo. HARDENED: erro genérico (sem detalhes). Lab 5.1."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var b=pm.response.text();",
+                  "var vaza=/Exception|Trace|at [a-z]+\\.[a-z]/i.test(b);",
+                  "console.log('vaza detalhe? '+vaza+' (true=baseline VULN, false=hardened OK)');",
+                  "pm.test('resposta de erro recebida',()=>pm.expect([400,404,500,200]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Security headers (DAST) — GET /",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": []
+            },
+            "description": "Relacionado ao DAST: verifica cabeçalhos de segurança na home. Útil para discutir findings do ZAP.\n\nNota: SAST (SonarLint) e o scan completo do DAST (ZAP) são ferramentas — ver materiais/lab.md e roteiro-demonstracao.md."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "['X-Content-Type-Options','X-Frame-Options','Content-Security-Policy'].forEach(function(h){console.log(h+': '+(pm.response.headers.get(h)||'(ausente)'));});",
+                  "pm.test('home responde',()=>pm.expect([200,302]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Aula 6 · Deploy Seguro",
+      "item": [
+        {
+          "name": "Actuator /env (200=VULN / 401-404=OK)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/actuator/env",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "actuator",
+                "env"
+              ]
+            },
+            "description": "Endpoint que lista config/variáveis (e possíveis segredos). BASELINE: 200 (exposto!). HARDENED: 401/404. Lab 6.1."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "console.log('/actuator/env -> '+pm.response.code+'  (200=baseline VULN, 401/404=hardened OK)');",
+                  "pm.test('200=baseline(VULN) ou 401/404=hardened(OK)',()=>pm.expect([200,401,404]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Actuator /health (esperado 200)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/actuator/health",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "actuator",
+                "health"
+              ]
+            },
+            "description": "Health check deve permanecer disponível nos dois estados."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('health disponível',()=>pm.expect([200]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "H2 console (disponível=VULN / 404=OK)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/h2-console",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "h2-console"
+              ]
+            },
+            "description": "Console do banco. BASELINE: disponível. HARDENED: desabilitado (404). Lab 6.1.\n\nNota: SCA (Dependency-Check), Trivy e gates de CI são de build/pipeline — ver materiais/lab.md e roteiro-demonstracao.md."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "console.log('/h2-console -> '+pm.response.code+'  (200/302=baseline VULN, 404=hardened OK)');",
+                  "pm.test('200/302=baseline(VULN) ou 404=hardened(OK)',()=>pm.expect([200,302,404]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
