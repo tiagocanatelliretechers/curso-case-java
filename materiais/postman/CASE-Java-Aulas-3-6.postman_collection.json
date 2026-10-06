@@ -438,7 +438,7 @@
                 }
               ]
             },
-            "description": "Faz login web para popular o cookie JSESSIONID no jar do Postman (pré-requisito do teste de CSRF)."
+            "description": "Faz login web para popular o cookie JSESSIONID no jar do Postman (pré-requisito do teste de CSRF).\n\n[NOTA] Funciona no baseline (CSRF off). No hardened o login exige o token CSRF — use a collection 'Aula 4 — CSRF' (extrai o token automaticamente)."
           },
           "response": [],
           "event": [
@@ -476,8 +476,8 @@
               "mode": "urlencoded",
               "urlencoded": [
                 {
-                  "key": "item",
-                  "value": "X"
+                  "key": "produtoId",
+                  "value": "1"
                 },
                 {
                   "key": "quantidade",
@@ -485,7 +485,7 @@
                 }
               ]
             },
-            "description": "POST de escrita SEM token CSRF, usando o cookie da sessão (simula site externo). BASELINE: aceito. HARDENED: 403. Rode antes o 'login web'. Lab 4.4."
+            "description": "POST de escrita SEM token CSRF, usando o cookie da sessão (simula site externo). BASELINE: aceito. HARDENED: 403. Rode antes o 'login web'. Lab 4.4.\n\n[ATUALIZADO] Corpo correto: produtoId/quantidade. No HARDENED o login exige token CSRF — para o fluxo completo e automático use a collection dedicada 'Aula 4 — CSRF'."
           },
           "response": [],
           "event": [
