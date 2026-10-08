@@ -75,21 +75,27 @@ Mostre o painel (Issues / Security Hotspots) e o conceito de *Quality Gate*.
 
 ---
 
-## DEMO 3 — DAST com OWASP ZAP Desktop (sem Docker)  · ~8 min
+## DEMO 3 — DAST (análise dinâmica)  · ~8 min
 
 **O que falar:** "O SAST viu o código; o DAST vê a aplicação **rodando**, de fora, como um atacante."
 
-### 3a) Scan automático
-- Abra o **ZAP Desktop** → *Quick Start → Automated Scan* → alvo `http://localhost:8080` → *Attack*.
-- **O que observar:** a aba *Alerts* enche (ex.: headers de segurança ausentes, cookies).
-- **O que dizer:** "Ele nem viu o código — achou pela resposta HTTP."
+> ⚠️ **ZAP bloqueado pelo Windows?** O Defender/SmartScreen costuma marcar o ZAP como "hacktool/PUA" e remover (comum em VM gerenciada). **Não precisa do ZAP** para ensinar o conceito: o DAST acha, na resposta HTTP, coisas como **cabeçalhos de segurança ausentes** — e isso se vê no **navegador (DevTools) ou com curl**. Use o caminho 3a abaixo. O ZAP (3a-alt) fica como opcional/instrutor.
+
+### 3a) DAST manual (sem ZAP) — navegador + curl  ⭐ recomendado
+Mostre os achados que um scanner reportaria, direto na resposta HTTP:
+- **Na tela (navegador):** F12 → aba **Network** → clique na requisição do documento (`localhost`) → **Response Headers**. Aponte o que **falta**: `Content-Security-Policy`, `X-Frame-Options`, `Strict-Transport-Security`.
+- **Ou por linha de comando:**
+  - Windows (PowerShell): `curl.exe -sI http://localhost:8080/ | findstr /i "content-security x-frame strict-transport"`
+  - Linux/macOS: `curl -sI http://localhost:8080/ | grep -iE 'content-security-policy|x-frame-options|strict-transport'`
+- **O que observar:** esses três **não aparecem** → é um achado real de DAST (clickjacking, sem CSP, sem HSTS).
+- **O que dizer:** "O scanner automatiza isto; aqui vimos o mesmo na mão. DAST acha pela resposta, sem olhar o código."
+
+### 3a-alt) (Opcional) Scan automático com OWASP ZAP
+Se tiver uma máquina onde o ZAP roda (ex.: a sua, de instrutor): **ZAP Desktop** → *Quick Start → Automated Scan* → `http://localhost:8080` → *Attack*. A aba *Alerts* enche com os mesmos achados (e mais). Para instalar sem o instalador bloqueado, use o **pacote ZIP "Cross Platform"** (não o .exe) e rode `zap.bat`.
 
 ### 3b) Validar 1 finding (o ponto da aula)
-- Pegue um alerta (ex.: header ausente) e **valide manualmente**:
-```bash
-curl -sI http://localhost:8080/ | grep -iE 'content-security-policy|x-frame-options|strict-transport'
-```
-- **O que dizer:** "Confirma que o header realmente não existe. Nunca confie no relatório sem validar."
+- Já validamos acima com o `curl -I`: o header realmente não existe.
+- **O que dizer:** "Nunca confie no relatório sem reproduzir. O valor do analista é triar e validar, não rodar a ferramenta."
 
 ### 3c) (Opcional) SAST × DAST
 Feche a demo contrastando: **SAST** aponta a linha no código mas erra por falta de contexto; **DAST** confirma em runtime mas não diz onde no código. **Os dois se complementam.**

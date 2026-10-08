@@ -122,25 +122,28 @@ docker run -d --name sonarqube -p 9000:9000 sonarqube:10-community   # http://lo
 
 **Conceito em 1 minuto:** DAST = *Dynamic Application Security Testing*. Ataca a app rodando **sem ver o código** (caixa-preta): rastreia as páginas e envia payloads. Acha coisas como headers de segurança ausentes, cookies sem flags, comportamentos inseguros. Limite: não sabe *onde* no código está o problema, e também gera falsos positivos → **valide manualmente** pelo menos um finding reproduzindo a requisição.
 
-### Caminho principal (sem Docker) — OWASP ZAP Desktop
-1. Baixe o **OWASP ZAP** (app nativo Java): <https://www.zaproxy.org/download/>. Precisa de Java (você já tem).
-2. Com o Portal rodando (`--lab 5 --no-docker`), no ZAP use **Quick Start → Automated Scan**, alvo `http://localhost:8080`.
-   - *O que observar:* a aba *Alerts* lista os achados (ex.: headers ausentes, cookies).
-   - *O que isso significa:* são problemas visíveis de fora, sem acesso ao código.
-3. (Opcional) Configure um **contexto autenticado** (usuário `joao@acme.com`/`senha123`) para cobrir rotas logadas e rode o *Active Scan* nas rotas de pedidos.
-4. Escolha **1 finding** e **valide manualmente**: reproduza a requisição (no navegador ou `curl`) e confirme que o problema existe de verdade.
+> ⚠️ **ZAP bloqueado pelo Windows?** O Defender costuma marcar o ZAP como "hacktool/PUA" e remover (comum em VM gerenciada). **Você não precisa do ZAP** para este lab: o essencial do DAST (achar pela resposta HTTP) dá para fazer com o navegador/`curl`.
 
-### Caminho opcional (com Docker) — ZAP em container
-```bash
-docker run --rm -t ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t http://host.docker.internal:8080 -r zap.html
-```
+### Caminho principal (sem ferramenta) — DAST manual com navegador + curl
+1. Com o Portal rodando, inspecione a **resposta HTTP** procurando cabeçalhos de segurança **ausentes**:
+   - **Navegador:** F12 → **Network** → clique na requisição do documento (`localhost`) → **Response Headers**.
+   - **Windows (PowerShell):** `curl.exe -sI http://localhost:8080/ | findstr /i "content-security x-frame strict-transport"`
+   - **Linux/macOS:** `curl -sI http://localhost:8080/ | grep -iE 'content-security-policy|x-frame-options|strict-transport'`
+   - *O que observar:* `Content-Security-Policy`, `X-Frame-Options` e `Strict-Transport-Security` **não aparecem** → achados reais (sem CSP, clickjacking possível, sem HSTS).
+2. Inspecione também o **cookie de sessão** (`Set-Cookie`): confira `HttpOnly`/`SameSite` (DevTools → Application → Cookies).
+3. **Valide** o achado reproduzindo a requisição (você já fez com o `curl -I`) — é o que distingue um analista de quem só confia no relatório.
+
+### Caminho opcional — OWASP ZAP (onde o AV permitir)
+1. Prefira o **pacote ZIP "Cross Platform"** (não o instalador .exe, que costuma ser bloqueado): extraia e rode `zap.bat`.
+2. **Quick Start → Automated Scan**, alvo `http://localhost:8080` → *Attack*. A aba *Alerts* lista os mesmos achados (e mais).
+3. (Com Docker, só instrutor) `docker run --rm -t ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t http://host.docker.internal:8080 -r zap.html`.
 
 **Ponto de entendimento:** *Por que sempre validar manualmente um finding do DAST?*
 > Resposta esperada: scanners geram falsos positivos; reproduzir a requisição confirma que o risco é real antes de gastar tempo corrigindo (ou reportar).
 
 **Se der errado:**
-- ZAP não acha o alvo → confirme que o app está em `http://localhost:8080` e que não há proxy bloqueando.
-- Scan autenticado não cobre rotas logadas → o contexto/login não foi configurado; comece pelo *Automated Scan* não autenticado.
+- O Windows removeu o ZAP → é o Defender (PUA); use o **DAST manual** acima, que cobre o objetivo do lab.
+- `curl.exe` não encontrado (PowerShell) → use o `.exe` explícito ou `(Invoke-WebRequest http://localhost:8080/ -UseBasicParsing).Headers`.
 
 **Conecte com a teoria:** slides "DAST — caixa-preta" e "SAST × DAST (o que cada um vê)".
 
