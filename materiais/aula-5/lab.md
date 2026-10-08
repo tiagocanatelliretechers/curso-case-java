@@ -39,9 +39,10 @@ Ao final você deve conseguir **explicar**:
 
 **Passo 0 — reproduza o vazamento (baseline):**
 ```bash
-curl -s "http://localhost:8080/pedidos/abc"     # id inválido
+curl -s "http://localhost:8080/api/pedidos/abc"   # id inválido (endpoint público, sem login)
 ```
-- *O que observar:* volta **stack trace / mensagem de exceção**.
+Ou, na tela, abra `http://localhost:8080/api/pedidos/abc` no navegador.
+- *O que observar:* HTTP 400 com JSON contendo `"exception"`, `"trace"` (stack trace) e `"message"`.
 - *O que isso significa:* o cliente (qualquer um) recebe detalhes internos — reconhecimento gratuito para o atacante.
 
 **Passo a passo (correção):**
@@ -70,7 +71,7 @@ curl -s "http://localhost:8080/pedidos/abc"     # id inválido
    ```
 
 4. Reteste:
-   - *O que observar:* `/pedidos/abc` → erro **genérico**; o log do servidor tem o detalhe + traceId; uma URL com `\n` **não** cria linhas falsas no log.
+   - *O que observar:* `/api/pedidos/abc` → erro **genérico**; o log do servidor tem o detalhe + traceId; uma URL com `\n` **não** cria linhas falsas no log.
 
 **Ponto de entendimento:** *Que informação um stack trace entrega a um atacante?*
 > Resposta esperada: nomes de classes/pacotes, trechos de query, caminhos de arquivo, versões de libs — pistas para escolher o próximo ataque.
@@ -152,7 +153,7 @@ docker run --rm -t ghcr.io/zaproxy/zaproxy:stable zap-baseline.py -t http://host
 4. Por que validar manualmente um finding do DAST?
 
 ## Entrega
-- Correções do Lab 5.1 (handler global + log seguro), com evidência antes/depois de `/pedidos/abc`.
+- Correções do Lab 5.1 (handler global + log seguro), com evidência antes/depois de `/api/pedidos/abc`.
 - Notas de triagem SAST (≥ 5 findings) + 1 correção confirmada.
 - Achados do DAST + **1 finding validado manualmente**.
 - Uma frase por lab respondendo ao "Ponto de entendimento".

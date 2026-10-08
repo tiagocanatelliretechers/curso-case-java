@@ -9,11 +9,17 @@ Solução do 5.1 na tag `aula-5-hardened` (`GlobalExceptionHandler`, `ImportCont
 > **Docker:** as VMs dos alunos não têm. Para SAST use **SonarLint** (na IDE) ao vivo; para DAST use **ZAP Desktop**.
 > Se a **sua** máquina de instrutor tiver Docker, dá para demonstrar o SonarQube em container como bônus.
 
-## Preparação
+## Preparação — o que instalar (uma vez)
+- **Todos:** JDK 17 (já das aulas anteriores) + o repo da aula: `git clone https://github.com/tiagocanatelliretechers/curso-case-java-aula-5-sast-dast.git`.
+- **SAST (Demo 2):** **SonarLint** na IDE — Eclipse: *Help → Eclipse Marketplace → "SonarQube for IDE"* (ex-SonarLint) → Install → reiniciar. VS Code: extensão *SonarQube for IDE*. **Sem Docker, sem servidor.**
+- **DAST (Demo 3):** **OWASP ZAP Desktop** — baixe em <https://www.zaproxy.org/download/> (usa o Java que você já tem). **Sem Docker.**
+- **Opcional (só instrutor, se tiver Docker):** SonarQube/ZAP em container (bônus).
+
 ```bash
 git checkout aula-5-baseline
 ./scripts/start.sh --lab 5 --no-docker
 ```
+> **Teste antes da aula:** `curl -s http://localhost:8080/api/pedidos/abc` deve vir com stack trace no baseline.
 
 ---
 
@@ -21,19 +27,21 @@ git checkout aula-5-baseline
 
 **O que falar:** "Quando quebra, a aplicação conta demais. Vamos ver o que ela entrega para um estranho."
 
+> Use **`/api/pedidos/abc`** (é público, não precisa de login — ótimo para a tela). O `abc` não é um número, então o endpoint quebra. Na tela compartilhada, basta **abrir essa URL no navegador**.
+
 ### 1a) O vazamento (baseline)
 ```bash
-curl -s "http://localhost:8080/pedidos/abc"
+curl -s "http://localhost:8080/api/pedidos/abc"
 ```
-- **Esperado:** um **stack trace / mensagem de exceção** na resposta.
-- **O que dizer:** "Nomes de classe, query, caminho, versão de lib — um mapa da aplicação, de graça."
+- **Esperado:** HTTP **400** com JSON contendo `"exception"`, **`"trace"`** (stack trace inteira), `"message"`, `"path"`.
+- **O que dizer:** "Nomes de classe, caminho, versão de lib — um mapa da aplicação, de graça. E sem precisar estar logado."
 
 ### 1b) A correção pronta (hardened)
 ```bash
 git checkout aula-5-hardened && ./scripts/start.sh --lab 5 --no-docker
-curl -s "http://localhost:8080/pedidos/abc"
+curl -s "http://localhost:8080/api/pedidos/abc"
 ```
-- **Esperado:** resposta **genérica** (ex.: `{"erro":"Ocorreu um erro","traceId":"..."}`); o detalhe está **no log do servidor** (mostre o console).
+- **Esperado:** resposta **genérica** — `{"erro":"Ocorreu um erro. Ref: <uuid>"}` (sem `trace`/`exception`); o detalhe vai **para o log do servidor** (mostre o console).
 - **Log injection:** mostre que uma URL de import com `\n` não cria mais linhas falsas no log.
 
 ### 1c) Mostre o código
@@ -94,4 +102,5 @@ Amarre: **erro genérico + log seguro**, **SAST = código (triar VP/FP)**, **DAS
 ## Erros comuns na hora da demo
 - **SonarLint sem avisos:** projeto não importado como Maven, ou nenhum arquivo aberto (a análise é por arquivo aberto).
 - **ZAP não acha o alvo:** app precisa estar em `http://localhost:8080`; sem proxy no meio.
-- **`/pedidos/abc` já genérico no baseline:** confira que está mesmo no `aula-5-baseline` (não no hardened).
+- **`/api/pedidos/abc` já genérico no baseline:** confira que está mesmo no `aula-5-baseline` (não no hardened).
+- **302 em vez de erro:** você usou `/pedidos/abc` (web, exige login). Use **`/api/pedidos/abc`** (público).
