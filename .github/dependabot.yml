@@ -1,0 +1,14 @@
+# =====================================================================
+# Aula 6 — SCA nativo do GitHub (sem instalar nada, sem NVD key).
+# Os ALERTAS do Dependabot já aparecem sozinhos na aba "Security" de um
+# repositório público (ele detecta o commons-text 1.9 / Text4Shell).
+# Este arquivo liga, ainda por cima, os PRs automáticos de atualização:
+# o GitHub abre um Pull Request propondo subir a lib vulnerável.
+# =====================================================================
+version: 2
+updates:
+  - package-ecosystem: "maven"
+    directory: "/portal-pedidos"     # onde está o pom.xml
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
