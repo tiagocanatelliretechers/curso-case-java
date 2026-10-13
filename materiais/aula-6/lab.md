@@ -4,7 +4,7 @@
 **Ponto de partida:** `aula-6-baseline` (app já corrigida nas Aulas 2–5, mas com: Actuator/H2 abertos, dependência com CVE, Dockerfile inseguro, CI sem gates).
 **Ambiente:** JDK 17 + IDE. Subir o app: `./scripts/start.sh --lab 6 --no-docker` (ou `-Lab 6 -NoDocker`).
 
-> **Docker:** não é necessário para o aluno. Dependency-Check roda pelo Maven; o Trivy escaneia por **binário nativo** (`trivy fs` / `trivy config`). O build+scan da imagem (`docker build` + `trivy image`) é **opcional/instrutor**.
+> **Docker:** não é necessário. Em sala, o **Lab 6.2** (SCA) roda pelo Maven (Dependency-Check, só precisa da NVD key). Os **Labs 6.3 e 6.4 saíram da máquina**: viram **Extra na nuvem** (GitHub Actions + Dependabot + Trivy), feitos por fork — sem Docker e sem Trivy local.
 
 ---
 
@@ -18,10 +18,12 @@ Cada exercício tem: **Por que fazemos isto** · **Conceito em 1 minuto** · **P
 
 | Conceito (slides) | Risco no deploy | Lab | O que você vai provar |
 |-------------------|-----------------|-----|-----------------------|
-| Superfície de exposição em produção | Actuator/H2 abertos vazam segredos | 6.1 | Que `/actuator/env` entrega segredos — e como fechar. |
-| SCA (dependências vulneráveis) | `commons-text` 1.9 (Text4Shell) | 6.2 | Que uma lib com CVE entra pela porta dos fundos — e como detectar/atualizar. |
-| Imagem de container segura | Dockerfile root, com segredo, "gordo" | 6.3 | Que a imagem tem riscos — e como fazer multi-stage/não-root. |
-| Segurança no pipeline (shift-left) | CI sem gates | 6.4 | Que dá para barrar o crítico **antes** do merge. |
+| Superfície de exposição em produção | Actuator/H2 abertos vazam segredos | 6.1 · **sala** | Que `/actuator/env` entrega segredos — e como fechar. |
+| SCA (dependências vulneráveis) | `commons-text` 1.9 (Text4Shell) | 6.2 · **sala** | Que uma lib com CVE entra pela porta dos fundos — e como detectar/atualizar. |
+| Imagem de container segura | Dockerfile root, com segredo, "gordo" | 6.3 · **Extra (nuvem)** | Que a imagem tem riscos — e como fazer multi-stage/não-root. |
+| Segurança no pipeline (shift-left) | CI sem gates | 6.4 · **Extra (nuvem)** | Que dá para barrar o crítico **antes** do merge. |
+
+> **Estrutura desta aula:** os Labs **6.1 e 6.2 são hands-on em sala** (na sua máquina, com a app rodando). Os Labs **6.3 e 6.4 são "Extra — pós-aula", feitos na NUVEM** (GitHub Actions + Dependabot + Trivy), sem instalar nada. Em sala eles entram como **demonstração do instrutor**; você refaz depois, no seu ritmo, por **fork** do repositório (passo a passo na seção Extra, abaixo, e em `DEMO-NUVEM.md`).
 
 ## Objetivos de aprendizagem
 Ao final você deve conseguir **explicar**:
@@ -83,9 +85,12 @@ curl -s http://localhost:8080/actuator/env | head -c 300                        
 **Passo a passo:**
 1. Rode o Dependency-Check (perfil `security` já no `pom.xml`):
    ```bash
-   ./mvnw -Psecurity verify -DnvdApiKey=SUA_CHAVE
+   ./mvnw -Psecurity verify -DnvdApiKey=COLE_SUA_CHAVE
    ```
-   > A chave da NVD (grátis) acelera muito: <https://nvd.nist.gov/developers/request-an-api-key>. Sem ela, o primeiro download da base é lento.
+   > **A chave é pessoal e gratuita** — cada um gera a sua (atrelada ao seu e-mail) em
+   > <https://nvd.nist.gov/developers/request-an-api-key>. **Não há "chave do curso".**
+   > Peça a chave **antes da aula** e, se possível, **rode uma vez** para já baixar a base
+   > do NVD (a 1ª execução sem cache é lenta). Sem chave funciona, mas demora bem mais.
    Abra `target/dependency-check-report.html`.
    - *O que observar:* um finding para `commons-text` 1.9 (CVE-2022-42889).
    - *O que isso significa:* uma dependência transitiva/direta traz um risco crítico conhecido.
@@ -104,72 +109,66 @@ curl -s http://localhost:8080/actuator/env | head -c 300                        
 
 ---
 
-## Lab 6.3 — Hardening do Dockerfile + Trivy (25 min)
+## ⭐ EXTRA (pós-aula, na NUVEM) — Labs 6.3 e 6.4 sem instalar nada
 
-**Por que fazemos isto:** a forma como você empacota a app importa. Uma imagem que roda como **root**, carrega **segredos em layer** ou traz um SO inteiro amplia muito o estrago de qualquer falha.
+> Em sala, estes dois você verá como **demonstração** (o instrutor na tela). **Refaça depois**,
+> no seu ritmo, pelo seu **fork** no GitHub — roda tudo nos servidores do GitHub (Actions),
+> **sem Trivy, sem Docker, sem NVD key na sua máquina**. Roteiro detalhado em `DEMO-NUVEM.md`.
 
-**Conceito em 1 minuto:** boas práticas de imagem: **multi-stage** (compila num stage, a imagem final leva só o JRE + o jar — menor e sem ferramentas de build), **usuário não-root**, **nenhum segredo em `ENV`/layer** (passe em runtime), e **base mínima** (ex.: `eclipse-temurin:17-jre`). O **Trivy** escaneia imagem, filesystem e o próprio Dockerfile em busca de CVEs e más configurações.
+**Como preparar seu fork (uma vez, ~2 min):**
+1. Abra o repositório da aula no GitHub → botão **Fork** (precisa de conta GitHub, grátis).
+2. No seu fork: aba **Actions** → **"I understand my workflows, go ahead and enable them"**.
+3. (Para o 6.3-Extra ver as CVEs) *Settings → Advanced Security* → ligue **Dependabot alerts**.
 
-**Passo a passo:**
-1. Revise/reescreva o `Dockerfile` (compare com o hardened):
-   - multi-stage (build → runtime só com JRE + jar);
-   - `USER` não-root;
-   - sem segredo em `ENV`;
-   - base mínima (`eclipse-temurin:17-jre`).
-   - *O que isso significa:* menor superfície, menos privilégio, sem segredo vazado no histórico de layers.
+### Lab 6.3-Extra — Imagem/dependências seguras (Trivy na nuvem)
 
-2. **Sem Docker (nas VMs)** — escaneie com o **Trivy nativo** (`choco install trivy` / binário do site):
-   ```bash
-   trivy config .        # analisa o Dockerfile em busca de más configurações
-   trivy fs .            # analisa dependências/arquivos do projeto
-   ```
-   - *O que observar:* alertas de config (ex.: roda como root, sem HEALTHCHECK) e CVEs de dependência.
+**Por que fazemos isto:** a forma como você empacota a app importa — rodar como **root**,
+**segredo em layer** ou imagem "gorda" amplia qualquer falha. E dá para escanear **sem instalar nada**.
 
-3. **Com Docker (opcional/instrutor):** build + scan da imagem:
-   ```bash
-   docker build -t portal-pedidos:hardened .
-   docker run --rm aquasec/trivy:latest image portal-pedidos:hardened
-   docker history portal-pedidos:hardened   # confirme que não há segredo em layer
-   ```
+**Conceito em 1 minuto:** boas práticas de imagem: **multi-stage**, **usuário não-root**,
+**nenhum segredo em `ENV`/layer**, **base mínima** (`eclipse-temurin:17-jre`). O **Trivy**
+(rodando no pipeline da nuvem) escaneia dependências e o próprio Dockerfile em busca de CVEs e más configs.
+
+**Passo a passo (no navegador):**
+1. No seu fork, aba **Actions** → workflow **security-gate** → execução da branch `main`.
+2. Abra o job **"Trivy — dependências + Dockerfile"** → passo **"relatório completo"**. Observe:
+   - `commons-text 1.9 · CVE-2022-42889 (Text4Shell) · CRITICAL`;
+   - `Dockerfile · AVD-DS-0002 (HIGH)` → *"sem `USER` = roda como root"*.
+3. Compare com a branch **`hardened`** (o mesmo job fica **verde**) e abra o **`portal-pedidos/Dockerfile`**:
+   multi-stage, `USER appuser`, base `-jre`, sem segredo.
+   - *O que isso significa:* menor superfície, menos privilégio, sem segredo no histórico de layers.
+4. **SCA nativo:** aba **Security → Dependabot** mostra a Text4Shell sozinha; em **Pull requests**
+   está o PR automático que o GitHub abriu para subir o `commons-text`.
 
 **Ponto de entendimento:** *Por que rodar o container como não-root reduz o risco?*
-> Resposta esperada: se um atacante executar código dentro do container, começa sem privilégios de root — dificultando escapar do container ou tocar em recursos sensíveis.
+> Resposta esperada: se um atacante executar código no container, começa **sem** privilégios de root — dificultando escapar do container ou tocar em recursos sensíveis.
 
-**Se der errado:**
-- `trivy` não encontrado → instale o binário nativo (não precisa de Docker para `config`/`fs`).
-- Muitos CVEs na base → foque nos **críticos/altos evitáveis**; nem todo CVE tem correção aplicável.
+### Lab 6.4-Extra — Gate de segurança no CI (shift-left)
 
-**Conecte com a teoria:** slides "Imagem de container segura (multi-stage, não-root)" e "Trivy — image/fs/config".
+**Por que fazemos isto:** achar a falha em produção é caro; achar no **pull request** é barato.
+"Shift-left" é mover a segurança para cedo, **automatizada**, para o crítico **não passar** do merge.
 
----
+**Conceito em 1 minuto:** o pipeline roda a cada push/PR. O workflow `security.yml` tem um **gate**
+configurado para **falhar** em `HIGH/CRITICAL` (`--exit-code 1`). Assim a proteção não depende de disciplina humana.
 
-## Lab 6.4 — Pipeline CI com gates de segurança (20 min)
-
-**Por que fazemos isto:** achar a falha em produção é caro; achar no **pull request** é barato. "Shift-left" é mover a segurança para cedo no ciclo, automatizada, de forma que um crítico **não passe** do merge.
-
-**Conceito em 1 minuto:** um pipeline de CI roda a cada commit/PR. Adicionamos **gates**: build+test, **SAST** (Aula 5) e **SCA** (Dependency-Check). Configuramos o pipeline para **falhar** diante de um finding crítico — assim a proteção não depende de alguém lembrar de rodar.
-
-**Passo a passo:**
-1. Crie um workflow (GitHub Actions **ou** GitLab CI) com 3 estágios:
-   ```yaml
-   # exemplo (GitHub Actions, resumido)
-   - run: ./mvnw verify                 # build + testes
-   - run: ./mvnw -Psecurity verify      # SCA (Dependency-Check) — falha em CVSS alto
-   # + passo de SAST (SonarQube/Semgrep) da Aula 5
-   ```
-2. Configure o gate para **falhar** o build em finding crítico (ex.: `failBuildOnCVSS`).
-3. Faça um commit que reintroduza uma dependência vulnerável (ex.: voltar `commons-text` para 1.9).
-   - *O que observar:* o pipeline **falha** no estágio de SCA.
-   - *O que isso significa:* o crítico foi barrado **antes** de chegar à main — sem depender de disciplina humana.
+**Passo a passo (no navegador):**
+1. Na aba **Actions** do seu fork, veja **lado a lado**: ✘ vermelho no `main`, ✔ verde no `hardened`.
+   *"Mesmo pipeline; a diferença é só o código."*
+2. Abra o passo **"Gate — reprova em HIGH/CRITICAL"** do `main`: o build **falhou** por causa do crítico.
+   Veja no `.github/workflows/security.yml` a linha `severity: HIGH,CRITICAL` + `--exit-code 1`.
+3. **Prova viva:** abra um **Pull Request** no seu fork (ex.: `hardened` → `main`) e acompanhe o
+   **check do security-gate** rodando no PR — vermelho enquanto houver o crítico, verde depois.
+   - *O que isso significa:* o crítico é barrado **antes** do merge, sem depender de ninguém lembrar.
 
 **Ponto de entendimento:** *Por que "shift-left" reduz o custo de corrigir?*
 > Resposta esperada: quanto mais cedo o problema é pego (no PR, não em produção), menor o retrabalho, o raio de impacto e o custo — e a correção ainda está fresca na cabeça de quem escreveu.
 
-**Se der errado:**
-- Pipeline passa mesmo com CVE → o gate (`failBuildOnCVSS`) não está configurado para falhar.
-- Não tem CI real disponível → simule localmente rodando os mesmos comandos numa ordem e tratando a falha do Maven como "gate".
+**Se der errado (Extra):**
+- Actions não roda no fork → faltou o passo 2 (habilitar workflows no fork).
+- Aba Security vazia → ligue os **Dependabot alerts** em *Settings → Advanced Security*.
+- Quer o caminho local (opcional, com Trivy na máquina)? Está em `roteiro-demonstracao.md` (seção "LOCAL").
 
-**Conecte com a teoria:** slides "Shift-left & DevSecOps" e "Gates de segurança no CI".
+**Conecte com a teoria:** slides "Imagem de container segura", "Trivy", "Shift-left & DevSecOps" e "Gates de segurança no CI".
 
 ---
 
@@ -180,12 +179,14 @@ curl -s http://localhost:8080/actuator/env | head -c 300                        
 4. O que é um gate de segurança no CI e por que "shift-left" compensa?
 
 ## Entrega
-- Actuator/H2 protegidos; dependência atualizada (sem o CVE); Dockerfile hardened + scan (Trivy); pipeline com gates.
-- Uma frase por lab respondendo ao "Ponto de entendimento".
+- **Em sala (6.1 e 6.2):** Actuator/H2 protegidos e dependência atualizada (sem o CVE), com uma
+  frase por lab respondendo ao "Ponto de entendimento".
+- **Extra pós-aula (6.3 e 6.4, na nuvem):** print do seu fork mostrando o **gate vermelho no `main`
+  e verde no `hardened`**, e um print da aba **Security/Dependabot** com a Text4Shell. (Opcional, mas recomendado.)
 - Em seguida: **CTF** (`anexos/ctf.md`) e **Simulado final** (`../simulado-final.md`).
 
 ## Onde pedir ajuda / erros comuns gerais
-- **Sem Docker?** É o caso das VMs — `trivy config`/`trivy fs` (nativo) cobrem o essencial; o build da imagem é opcional/instrutor.
-- **Dependency-Check lento?** Peça a NVD API key.
+- **NVD key (Lab 6.2):** é **pessoal e gratuita** — gere a sua e, se possível, pré-rode uma vez (a base do NVD é grande).
+- **Extra na nuvem (6.3/6.4):** não precisa de Docker/Trivy local — roda no Actions do seu fork; lembre de **habilitar os workflows** no fork.
 - **Comparar com a solução:** `git checkout aula-6-hardened`.
 - **Travou num conceito?** Não avance "só para entregar" — chame o instrutor.
