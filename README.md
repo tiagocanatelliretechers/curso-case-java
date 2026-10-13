@@ -63,30 +63,57 @@ dinâmica dos laboratórios: ver **[LABS.md](LABS.md)**.
    - `anexos/` — templates e fichas
 3. Os `.md` estão prontos para conversão em PPTX/DOCX/PDF.
 
-## Branches e tags da aplicação
+## 🎓 Todos os laboratórios em um só repositório (crus + gabarito)
 
-- `master` — materiais das 6 aulas (slides `.md` + `.pptx`, labs, gabaritos, quizzes) +
-  aplicação no estado **baseline**.
-- branch `curso-progressivo` — progressão linear com uma correção por aula (compila em cada etapa).
-- branch `solucao-hardened` — solução final + testes JUnit (`mvn test` = 9 verdes).
+Este repositório é **autocontido**: traz o app, os scripts, os materiais e **todos os estados
+de laboratório das 6 aulas como branches** — cada falha "crua" para você praticar e cada
+solução pronta como **gabarito**. Ideal para **exercitar depois do curso**.
 
-Tags (cada `aula-N-baseline` == `aula-(N-1)-hardened`, para o lab começar do estado corrigido anterior):
+- **`master`** — materiais das 6 aulas (slides, labs, gabaritos, quizzes, deck de revisão) +
+  app no estado inicial.
+- **Branch `aula-N-baseline`** — o lab **cru**: o estado vulnerável onde você *pratica* (já com as
+  correções das aulas anteriores aplicadas).
+- **Branch `aula-N-hardened`** — o **gabarito**: a mesma falha já corrigida, para conferir a solução.
 
-| Tag | Estado |
-|-----|--------|
-| `aula-1-baseline` = `aula-2-baseline` | app vulnerável (Aula 1 não altera código) |
-| `aula-2-hardened` = `aula-3-baseline` | + SQLi parametrizado, Bean Validation/@CNPJ, upload seguro |
-| `aula-3-hardened` = `aula-4-baseline` | + IDOR, BCrypt+migração, rate limiting, /admin ADMIN |
-| `aula-4-hardened` = `aula-5-baseline` | + AES-256-GCM, JWT verificado, cookie/sessão, CSRF |
-| `aula-5-hardened` = `aula-6-baseline` | + error handling, log injection, headers, SSRF allowlist |
-| `aula-6-hardened` | + Actuator restrito, H2 off, commons-text atualizado, Dockerfile hardened, testes |
+> As mesmas referências existem também como **tags** de mesmo nome (`git checkout` funciona nos dois).
 
-Todas as correções foram **verificadas em execução** (ataques falham, uso legítimo funciona)
-e os testes JUnit passam em `aula-6-hardened`.
+### Índice dos laboratórios
 
-> Dica: `git checkout aula-1-baseline` (ponto de partida) · `git checkout aula-3-baseline`
-> (iniciar a Aula 3) · `git checkout solucao-hardened` (solução + testes).
-> Para rodar a solução, defina `PORTAL_JWT_SECRET` e `PORTAL_CRYPTO_KEY` (há defaults DEV no `application.yml`).
+| Lab | Branch crua (pratique) | Branch gabarito (confira) | O que você corrige |
+|-----|------------------------|---------------------------|--------------------|
+| Aula 1 | `aula-1-baseline` | *(sem correção — reconhecimento)* | Mapear ameaças e levantar requisitos |
+| Aula 2 | `aula-2-baseline` | `aula-2-hardened` | SQLi parametrizado, Bean Validation, upload seguro |
+| Aula 3 | `aula-3-baseline` | `aula-3-hardened` | IDOR, BCrypt+migração, rate limiting, `/admin` por papel |
+| Aula 4 | `aula-4-baseline` | `aula-4-hardened` | Base64→AES-256-GCM, JWT assinado, cookie/sessão, CSRF |
+| Aula 5 | `aula-5-baseline` | `aula-5-hardened` | Error handling, log injection, headers, SonarLint/ZAP |
+| Aula 6 | `aula-6-baseline` | `aula-6-hardened` | Actuator/H2, SCA (Text4Shell), Dockerfile, gate de CI |
+
+Invariante: **`aula-N-baseline` == `aula-(N-1)-hardened`** (o corrigido acumula de uma aula para a outra).
+Todas as correções foram **verificadas em execução** (ataques falham, uso legítimo funciona).
+
+### Como praticar (pós-curso)
+
+```bash
+git clone https://github.com/tiagocanatelliretechers/curso-case-java.git
+cd curso-case-java
+
+git checkout aula-3-baseline              # começa a Aula 3 (estado cru)
+./scripts/start.sh --no-docker            # Windows: .\scripts\start.ps1 -NoDocker
+# -> siga materiais/aula-3/lab.md, aplique a correção
+
+git checkout aula-3-hardened              # compare com o gabarito
+```
+
+Acesse <http://localhost:8080> · contas: `admin@portal.com/admin123` ·
+`joao@acme.com/senha123` · `maria@globex.com/senha123`.
+Para a solução, defina `PORTAL_JWT_SECRET` e `PORTAL_CRYPTO_KEY` (há defaults DEV no `application.yml`).
+
+### Extra na nuvem (Aula 6 — SCA & gate de CI, sem instalar nada)
+
+As branches **`aula-6-baseline`** e **`aula-6-hardened`** já trazem **`.github/`** configurado
+(**Trivy** no GitHub Actions + **Dependabot**). Dê **fork**, habilite os workflows na aba **Actions**
+e veja o **gate** ficar 🔴 vermelho no baseline (Text4Shell + Dockerfile root) e 🟢 verde no hardened.
+Passo a passo: `materiais/aula-6/DEMO-NUVEM.md`.
 
 > ⚠️ A aplicação é um ambiente de treinamento e contém vulnerabilidades reais de
 > propósito. Não a exponha na internet.
